@@ -1,13 +1,13 @@
 package im.zhaojun.zfile.core.util;
 
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.StrUtil;
+import im.zhaojun.zfile.core.exception.ErrorCode;
+import im.zhaojun.zfile.core.exception.status.NotFoundAccessException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
@@ -36,21 +36,22 @@ public class FileResponseUtil {
      */
     public static ResponseEntity<Resource> exportSingleThread(File file, String fileName) {
         if (!file.exists()) {
-            ByteArrayResource byteArrayResource = new ByteArrayResource("文件不存在或异常，请联系管理员.".getBytes(StandardCharsets.UTF_8));
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .body(byteArrayResource);
+            throw new NotFoundAccessException(ErrorCode.BIZ_FILE_NOT_EXIST);
         }
 
         MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
 
         HttpHeaders headers = new HttpHeaders();
 
-        if (StrUtil.isEmpty(fileName)) {
+        if (StringUtils.isEmpty(fileName)) {
             fileName = file.getName();
         }
 
-        headers.setContentDispositionFormData("attachment", StringUtils.encodeAllIgnoreSlashes(fileName));
+        ContentDisposition contentDisposition = ContentDisposition
+                .builder("inline")
+                .filename(fileName, StandardCharsets.UTF_8)
+                .build();
+        headers.setContentDisposition(contentDisposition);
 
         return ResponseEntity
                 .ok()

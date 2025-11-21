@@ -1,12 +1,10 @@
 package im.zhaojun.zfile.core.util;
 
+import cn.hutool.cache.CacheUtil;
+import cn.hutool.cache.impl.LRUCache;
 import cn.hutool.core.net.URLEncodeUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
-import cn.hutool.extra.spring.SpringUtil;
-import im.zhaojun.zfile.module.config.service.SystemConfigService;
-import im.zhaojun.zfile.core.constant.ZFileConstant;
-import im.zhaojun.zfile.module.config.model.dto.SystemConfigDTO;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -17,18 +15,13 @@ import java.nio.charset.StandardCharsets;
  *
  * @author zhaojun
  */
-public class StringUtils {
-
-    public static final char DELIMITER = '/';
-
-    public static final String DELIMITER_STR = "/";
+public class StringUtils extends CharSequenceUtil implements StrPool {
 
     public static final String HTTP = "http";
 
-    public static final String HTTP_PROTOCOL = "http://";
+    public static final String PROTOCOL_MARKER = "://";
 
-    public static final String HTTPS_PROTOCOL = "https://";
-
+    private static final LRUCache<String, String> CACHE = CacheUtil.newLRUCache(1000);
 
     /**
      * 移除 URL 中的前后的所有 '/'
@@ -47,21 +40,21 @@ public class StringUtils {
 
 
     /**
-     * 移除 URL 中的第一个 '/'
+     * 移除 URL 中的前面的所有 '/'
      *
      * @param   path
      *          路径
      *
      * @return  如 path = '/folder1/file1', 返回 'folder1/file1'
-     *          如 path = '/folder1/file1', 返回 'folder1/file1'
+     *          如 path = '//folder1/file1', 返回 'folder1/file1'
      *
      */
     public static String trimStartSlashes(String path) {
-        if (StrUtil.isEmpty(path)) {
+        if (isEmpty(path)) {
             return path;
         }
 
-        while (path.startsWith(DELIMITER_STR)) {
+        while (path.startsWith(SLASH)) {
             path = path.substring(1);
         }
 
@@ -70,7 +63,7 @@ public class StringUtils {
 
 
     /**
-     * 移除 URL 中的最后一个 '/'
+     * 移除 URL 中结尾的所有 '/'
      *
      * @param   path
      *          路径
@@ -79,11 +72,11 @@ public class StringUtils {
      *          如 path = '/folder1/file1///', 返回 '/folder1/file1'
      */
     public static String trimEndSlashes(String path) {
-        if (StrUtil.isEmpty(path)) {
+        if (isEmpty(path)) {
             return path;
         }
 
-        while (path.endsWith(DELIMITER_STR)) {
+        while (path.endsWith(SLASH)) {
             path = path.substring(0, path.length() - 1);
         }
 
@@ -92,7 +85,7 @@ public class StringUtils {
 
 
     /**
-     * 去除路径中所有重复的 '/'
+     * 去除路径中所有重复的 '/'，如果最开始的协议头前有 / 也一并去除。
      *
      * @param   path
      *          路径
@@ -101,39 +94,47 @@ public class StringUtils {
      *          如 path = '/folder1////file1///', 返回 '/folder1/file1/'
      */
     public static String removeDuplicateSlashes(String path) {
-        if (StrUtil.isEmpty(path)) {
+        if (isEmpty(path)) {
             return path;
         }
 
-        StringBuilder sb = new StringBuilder();
+        return CACHE.get(path, false, () -> {
+            StringBuilder sb = new StringBuilder(path.length());
+            int protocolIndex = path.indexOf(PROTOCOL_MARKER);
 
-        // 是否包含 http 或 https 协议信息
-        boolean containProtocol =  StrUtil.containsAnyIgnoreCase(path, HTTP_PROTOCOL, HTTPS_PROTOCOL);
+            int pathStartIndex = 0;
 
-        if (containProtocol) {
-            path = trimStartSlashes(path);
-        }
+            // 1. 处理协议部分
+            if (protocolIndex > -1) {
+                // 找到协议名称的实际开始位置
+                int schemeStartIndex = 0;
+                while (schemeStartIndex < protocolIndex && path.charAt(schemeStartIndex) == '/') {
+                    schemeStartIndex++;
+                }
 
-        // 是否包含 http 协议信息
-        boolean startWithHttpProtocol = StrUtil.startWithIgnoreCase(path, HTTP_PROTOCOL);
-        // 是否包含 https 协议信息
-        boolean startWithHttpsProtocol = StrUtil.startWithIgnoreCase(path, HTTPS_PROTOCOL);
+                sb.append(path, schemeStartIndex, protocolIndex);
+                sb.append(PROTOCOL_MARKER);
 
-        if (startWithHttpProtocol) {
-            sb.append(HTTP_PROTOCOL);
-        } else if (startWithHttpsProtocol) {
-            sb.append(HTTPS_PROTOCOL);
-        }
-
-        for (int i = sb.length(); i < path.length() - 1; i++) {
-            char current = path.charAt(i);
-            char next = path.charAt(i + 1);
-            if (!(current == DELIMITER && next == DELIMITER)) {
-                sb.append(current);
+                pathStartIndex = protocolIndex + PROTOCOL_MARKER.length();
             }
-        }
-        sb.append(path.charAt(path.length() - 1));
-        return sb.toString();
+
+            if (pathStartIndex < path.length()) {
+                char lastChar;
+                char firstPathChar = path.charAt(pathStartIndex);
+                sb.append(firstPathChar);
+                lastChar = firstPathChar;
+
+                for (int i = pathStartIndex + 1; i < path.length(); i++) {
+                    char current = path.charAt(i);
+                    if (current != SLASH_CHAR || lastChar != SLASH_CHAR) {
+                        sb.append(current);
+                        lastChar = current;
+                    }
+                }
+            }
+
+            return sb.toString();
+        });
     }
 
 
@@ -217,15 +218,15 @@ public class StringUtils {
      * @return  拼接结果
      */
     public static String concat(String... strs) {
-        StringBuilder sb = new StringBuilder(DELIMITER_STR);
+        StringBuilder sb = new StringBuilder(SLASH);
         for (int i = 0; i < strs.length; i++) {
             String str = strs[i];
-            if (StrUtil.isEmpty(str)) {
+            if (isEmpty(str)) {
                 continue;
             }
             sb.append(str);
             if (i != strs.length - 1) {
-                sb.append(DELIMITER);
+                sb.append(SLASH_CHAR);
             }
         }
         return removeDuplicateSlashes(sb.toString());
@@ -244,42 +245,12 @@ public class StringUtils {
      * @return  拼接结果
      */
     public static String concat(boolean encodeAllIgnoreSlashes, String... strs) {
-        StringBuilder sb = new StringBuilder(DELIMITER_STR);
-        for (int i = 0; i < strs.length; i++) {
-            String str = strs[i];
-            if (StrUtil.isEmpty(str)) {
-                continue;
-            }
-            sb.append(str);
-            if (i != strs.length - 1) {
-                sb.append(DELIMITER);
-            }
-        }
+        String res = concat(strs);
         if (encodeAllIgnoreSlashes) {
-            return encodeAllIgnoreSlashes(removeDuplicateSlashes(sb.toString()));
+            return encodeAllIgnoreSlashes(res);
         } else {
-            return removeDuplicateSlashes(sb.toString());
+            return res;
         }
-    }
-
-
-    /**
-     * 拼接文件直链生成 URL
-     *
-     * @param   storageKey
-     *          存储源 ID
-     *
-     * @param   fullPath
-     *          文件全路径
-     *
-     * @return  生成结果
-     */
-    public static String generatorPathLink(String storageKey, String fullPath) {
-        SystemConfigService systemConfigService = SpringUtil.getBean(SystemConfigService.class);
-        SystemConfigDTO systemConfig = systemConfigService.getSystemConfig();
-        String domain = systemConfig.getDomain();
-        String directLinkPrefix = systemConfig.getDirectLinkPrefix();
-        return concat(domain, directLinkPrefix, storageKey, encodeAllIgnoreSlashes(fullPath));
     }
 
 
@@ -338,7 +309,7 @@ public class StringUtils {
      * @return  编码后的字符
      */
     public static String encodeAllIgnoreSlashes(String str) {
-        if (StrUtil.isEmpty(str)) {
+        if (isEmpty(str)) {
             return str;
         }
 
@@ -347,7 +318,7 @@ public class StringUtils {
         int prevIndex = -1;
         for (int i = 0; i < str.length(); i++) {
             char c = str.charAt(i);
-            if (c == ZFileConstant.PATH_SEPARATOR_CHAR) {
+            if (c == StringUtils.SLASH_CHAR) {
                 if (prevIndex < i) {
                     String substring = str.substring(prevIndex + 1, i);
                     sb.append(URLEncodeUtil.encodeAll(substring));
@@ -380,25 +351,140 @@ public class StringUtils {
 
 
     /**
-     * 获取路径的上级目录, 如最后为 /, 则也会认为是一级目录
+     * 移除字符串中所有换行符并去除前后空格
      *
-     * @param   path
-     *          文件路径
+     * @param   str
+     *          URL
      *
-     * @return  父级目录
+     * @return  移除协议后的 URL
      */
-    public static String getParentPath(String path) {
-        int toIndex = StrUtil.lastIndexOfIgnoreCase(path, ZFileConstant.PATH_SEPARATOR);
-        if (toIndex <= 0) {
-            return "/";
-        } else {
-            return StrUtil.sub(path, 0, toIndex);
-        }
-    }
-    
     public static String removeAllLineBreaksAndTrim(String str) {
         String removeResult = StrUtil.removeAllLineBreaks(str);
-        return StrUtil.trim(removeResult);
+        return trim(removeResult);
+    }
+
+
+    /**
+     * 移除字符串前后空格
+     *
+     * @param   str
+     *          字符串
+     *
+     * @return  移除前后空格后的字符串
+     */
+    public static String trim(final String str) {
+        return str == null ? null : str.trim();
+    }
+
+
+    /**
+     * 如果给定字符串不是以suffix结尾的，在尾部补充 suffix
+     *
+     * @param str    字符串
+     * @param suffix 后缀
+     * @return 补充后的字符串
+     */
+    public static String addSuffixIfNot(CharSequence str, CharSequence suffix) {
+        if (isEmpty(str) || isEmpty(suffix)) {
+            return str.toString();
+        }
+
+        if (str.toString().endsWith(suffix.toString())) {
+            return str.toString();
+        }
+
+        return str.toString() + suffix;
+    }
+
+    /**
+     * 是否包含特定字符，忽略大小写，如果给定两个参数都为{@code null}，返回true
+     *
+     * @param str     被检测字符串
+     * @param testStr 被测试是否包含的字符串
+     * @return 是否包含
+     */
+    public static boolean containsIgnoreCase(CharSequence str, CharSequence testStr) {
+        if (null == str) {
+            // 如果被监测字符串和
+            return null == testStr;
+        }
+        return StrUtil.indexOfIgnoreCase(str, testStr) > -1;
+    }
+
+
+    /**
+     * 指定范围内查找指定字符
+     *
+     * @param   str
+     *          字符串
+     *
+     * @param   searchChar
+     *          被查找的字符
+     *
+     * @return  位置
+     */
+    public static int indexOf(String str, char searchChar) {
+        if (isEmpty(str)) {
+            return INDEX_NOT_FOUND;
+        }
+        return str.indexOf(searchChar);
+    }
+
+
+    /**
+     * 字符串驼峰转下划线格式
+     *
+     * @param   param
+     *          驼峰格式字符串
+     *
+     * @return  下划线格式字符串
+     */
+    public static String camelToUnderline(String param) {
+        if (isEmpty(param)) {
+            return EMPTY;
+        }
+
+        int len = param.length();
+        StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++) {
+            char c = param.charAt(i);
+            if (Character.isUpperCase(c) && i > 0) {
+                sb.append(UNDERLINE);
+            }
+            sb.append(Character.toLowerCase(c));
+        }
+        return sb.toString();
+    }
+
+
+    /**
+     * 强制给 URL 设置协议
+     *
+     * @param   url
+     *          URL 地址，可以是带协议的，也可以是不带协议的，写会忽略大小写
+     *
+     * @param   schema
+     *          协议，如 http, https, http://, https://
+     *
+     * @return  设置协议后的 URL
+     */
+    public static String setSchema(String url, String schema) {
+        if (StringUtils.isEmpty(url) || StringUtils.isEmpty(schema)) {
+            return url;
+        }
+
+        if (!schema.endsWith("://")) {
+            schema += "://";
+        }
+
+        String lowerUrl = url.toLowerCase();
+        if (lowerUrl.startsWith("http://")) {
+            url = url.substring(7);
+        } else if (lowerUrl.startsWith("https://")) {
+            url = url.substring(8);
+        }
+
+        return schema + url;
     }
 
 }

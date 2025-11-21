@@ -1,10 +1,9 @@
 package im.zhaojun.zfile.module.config.model.request;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * 站点设置请求参数类
@@ -12,42 +11,50 @@ import javax.validation.constraints.NotBlank;
  * @author zhaojun
  */
 @Data
-@ApiModel(description = "站点设置请求参数类")
+@Schema(description = "站点设置请求参数类")
 public class UpdateSiteSettingRequest {
 
-	@ApiModelProperty(value = "站点名称", required = true, example = "ZFile Site Name")
+	@Schema(title = "站点名称", requiredMode = Schema.RequiredMode.REQUIRED, example = "ZFile Site Name")
 	@NotBlank(message = "站点名称不能为空")
 	private String siteName;
 
-	@ApiModelProperty(value = "站点域名", required = true, example = "https://zfile.vip")
-	@NotBlank(message = "站点域名不能为空")
-	private String domain;
+	@Schema(title = "强制后端地址", description ="强制指定生成直链，短链，获取回调地址时的地址。", example = "http://xxx.example.com")
+	private String forceBackendAddress;
 
-	@ApiModelProperty(value = "前端域名", notes = "前端域名，前后端分离情况下需要配置.", example = "http://xxx.example.com")
+	@Schema(title = "前端域名", description ="前端域名，前后端分离情况下需要配置.", example = "http://xxx.example.com")
 	private String frontDomain;
 
-	@ApiModelProperty(value = "头像地址", example = "https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png")
+	@Schema(title = "头像地址", example = "https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png")
 	private String avatar;
 
-	@ApiModelProperty(value = "备案号", example = "冀ICP备12345678号-1")
+	@Schema(title = "备案号", example = "冀ICP备12345678号-1")
 	private String icp;
 
-	@ApiModelProperty(value = "最大同时上传文件数", example = "5")
+	@Schema(title = "授权码", example = "e619510f-cdcd-f657-6c5e-2d12e9a28ae5")
+	private String authCode;
+
+	@Schema(title = "最大同时上传文件数", example = "5")
 	private Integer maxFileUploads;
 
-	@ApiModelProperty(value = "站点 Home 名称", example = "xxx 的小站")
+	@Schema(title = "站点 Home 名称", example = "xxx 的小站")
 	private String siteHomeName;
 
-	@ApiModelProperty(value = "站点 Home Logo", example = "true")
+	@Schema(title = "站点 Home Logo", example = "true")
 	private String siteHomeLogo;
 
-	@ApiModelProperty(value = "站点 Logo 点击后链接", example = "https://www.zfile.vip")
+	@Schema(title = "站点 Logo 点击后链接", example = "https://www.zfile.vip")
 	private String siteHomeLogoLink;
 
-	@ApiModelProperty(value = "站点 Logo 链接打开方式", example = "_blank")
+	@Schema(title = "站点 Logo 链接打开方式", example = "_blank")
 	private String siteHomeLogoTargetMode;
 
-	@ApiModelProperty(value = "网站 favicon 图标地址", example = "https://www.example.com/favicon.ico")
+	@Schema(title = "网站 favicon 图标地址", example = "https://www.example.com/favicon.ico")
 	private String faviconUrl;
+
+	@Schema(title = "管理员页面点击 Logo 回到首页打开方式", example = "_blank")
+	private String siteAdminLogoTargetMode;
+
+	@Schema(title = "管理员页面点击版本号打开更新日志", example = "true")
+	private Boolean siteAdminVersionOpenChangeLog;
 
 }

@@ -1,7 +1,7 @@
 package im.zhaojun.zfile.module.log.model.result;
 
 import im.zhaojun.zfile.module.storage.model.enums.StorageTypeEnum;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.Date;
@@ -14,34 +14,40 @@ import java.util.Date;
 @Data
 public class DownloadLogResult {
 
-	@ApiModelProperty(value="")
+	@Schema(title="")
 	private Integer id;
 
-	@ApiModelProperty(value="文件路径")
+	@Schema(title="文件路径")
 	private String path;
 
-	@ApiModelProperty(value = "存储源类型")
+	@Schema(title = "存储源类型")
 	private StorageTypeEnum storageType;
 	
-	@ApiModelProperty(value = "存储源名称", example = "我的本地存储")
+	@Schema(title = "存储源名称", example = "我的本地存储")
 	private String storageName;
 
-	@ApiModelProperty(value = "存储源Key", example = "local")
+	@Schema(title = "存储源Key", example = "local")
 	private String storageKey;
 
-	@ApiModelProperty(value="访问时间")
+	@Schema(title="访问时间")
 	private Date createTime;
 
-	@ApiModelProperty(value="访问 ip")
+	@Schema(title="访问 ip")
 	private String ip;
 	
-	@ApiModelProperty(value = "短链 Key")
+	@Schema(title = "短链 Key")
 	private String shortKey;
 
-	@ApiModelProperty(value="访问 user_agent")
+	@Schema(title="访问 user_agent")
 	private String userAgent;
 
-	@ApiModelProperty(value="访问 referer")
+	@Schema(title="访问 referer")
 	private String referer;
+
+	@Schema(title="短链地址")
+	private String shortLink;
+
+	@Schema(title="直链地址")
+	private String pathLink;
 
 }

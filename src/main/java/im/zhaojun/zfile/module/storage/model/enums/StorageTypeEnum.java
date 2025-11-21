@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.baomidou.mybatisplus.annotation.IEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,7 +36,8 @@ public enum StorageTypeEnum implements IEnum {
     SHAREPOINT_DRIVE_CHINA("sharepoint-china", "SharePoint 世纪互联"),
     GOOGLE_DRIVE("google-drive", "Google Drive"),
     QINIU("qiniu", "七牛云 KODO"),
-    DOGE_CLOUD("doge-cloud", "多吉云");
+    DOGE_CLOUD("doge-cloud", "多吉云"),
+    OPEN115("open115", "115");
 
     private static final Map<String, StorageTypeEnum> ENUM_MAP = new HashMap<>();
 
@@ -46,11 +47,11 @@ public enum StorageTypeEnum implements IEnum {
         }
     }
 
-    @ApiModelProperty(value = "存储源类型枚举 Key", example = "aliyun")
+    @Schema(title = "存储源类型枚举 Key", example = "aliyun")
     @EnumValue
     private final String key;
 
-    @ApiModelProperty(value = "存储源类型枚举描述", example = "阿里云 OSS")
+    @Schema(title = "存储源类型枚举描述", example = "阿里云 OSS")
     private final String description;
 
     StorageTypeEnum(String key, String description) {

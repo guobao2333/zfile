@@ -1,8 +1,13 @@
 package im.zhaojun.zfile.module.storage.model.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import im.zhaojun.zfile.core.config.jackson.JSONStringDeserializer;
+import im.zhaojun.zfile.core.config.jackson.JSONStringSerializer;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+
+import java.io.Serializable;
 
 /**
  * 所有存储源的全部参数
@@ -10,106 +15,152 @@ import lombok.Data;
  * @author zhaojun
  */
 @Data
-@ApiModel(description = "存储源所有拓展参数")
-public class StorageSourceAllParamDTO {
+@Schema(description = "存储源所有拓展参数")
+public class StorageSourceAllParamDTO implements Serializable {
 
-    @ApiModelProperty(value = "Endpoint 接入点", example = "oss-cn-beijing.aliyuncs.com")
+    private static final long serialVersionUID = 1L;
+
+    @Schema(title = "Endpoint 接入点", example = "oss-cn-beijing.aliyuncs.com")
     private String endPoint;
 
-    @ApiModelProperty(value = "路径风格", example = "path-style")
+    @Schema(title = "Endpoint 接入点协议", example = "http")
+    private String endPointScheme;
+
+    @Schema(title = "路径风格", example = "path-style")
     private String pathStyle;
 
-    @ApiModelProperty(value = "是否是私有空间", example = "true")
+    @Schema(title = "是否是私有空间", example = "true")
     private Boolean isPrivate;
 
-    @ApiModelProperty(value = "accessKey", example = "LTAI4FjfXqXxQZQZ")
+    @Schema(title = "代理下载生成签名链接", example = "true")
+    private boolean proxyPrivate;
+
+    @Schema(title = "accessKey", example = "LTAI4FjfXqXxQZQZ")
     private String accessKey;
 
-    @ApiModelProperty(value = "secretKey", example = "QJIO19ASJIKL10ZL")
+    @Schema(title = "secretKey", example = "QJIO19ASJIKL10ZL")
     private String secretKey;
 
-    @ApiModelProperty(value = "bucket 名称", example = "zfile-test")
+    @Schema(title = "bucket 名称", example = "zfile-test")
     private String bucketName;
 
-    @ApiModelProperty(value = "原 bucket 名称", example = "zfile-test")
+    @Schema(title = "原 bucket 名称", example = "zfile-test")
     private String originBucketName;
 
-    @ApiModelProperty(value = "域名或 IP", example = "127.0.0.1")
+    @Schema(title = "域名或 IP", example = "127.0.0.1")
     private String host;
 
-    @ApiModelProperty(value = "端口", example = "8080")
+    @Schema(title = "端口", example = "8080")
     private String port;
 
-    @ApiModelProperty(value = "访问令牌", example = "2.a6b7dbd428f731035f771b8d15063f61.86400.12929220")
+    @Schema(title = "访问令牌", example = "2.a6b7dbd428f731035f771b8d15063f61.86400.12929220")
     private String accessToken;
 
-    @ApiModelProperty(value = "刷新令牌", example = "15063f61.86400.1292922000-2346678-1243281asd-1asa")
+    @Schema(title = "刷新令牌", example = "15063f61.86400.1292922000-2346678-1243281asd-1asa")
     private String refreshToken;
 
-    @ApiModelProperty(value = "secretId", example = "LTAI4FjfXqXxQZQZ")
+    @Schema(title = "刷新令牌到期时间(秒)", example = "1752994685")
+    private Integer refreshTokenExpiredAt;
+
+    @Schema(title = "接口请求频率限制", example = "1.5")
+    private Double qps;
+
+    @Schema(title = "secretId", example = "LTAI4FjfXqXxQZQZ")
     private String secretId;
 
-    @ApiModelProperty(value = "文件路径", example = "/root/")
+    @Schema(title = "文件路径", example = "/root/")
     private String filePath;
 
-    @ApiModelProperty(value = "用户名", example = "admin")
+    @Schema(title = "用户名", example = "admin")
     private String username;
 
-    @ApiModelProperty(value = "密码", example = "123456")
+    @Schema(title = "密码", example = "123456")
     private String password;
 
-    @ApiModelProperty(value = "域名", example = "http://zfile-test.oss-cn-beijing.aliyuncs.com")
+    @Schema(title = "密钥", example = "-----BEGIN OPENSSH PRIVATE KEY-----\nxxxx\n-----END OPENSSH PRIVATE KEY-----")
+    private String privateKey;
+
+    @Schema(title = "密钥 passphrase", example = "123456")
+    private String passphrase;
+
+    @Schema(title = "域名", example = "http://zfile-test.oss-cn-beijing.aliyuncs.com")
     private String domain;
 
-    @ApiModelProperty(value = "基路径", example = "/root/")
+    @Schema(title = "基路径", example = "/root/")
     private String basePath;
 
-    @ApiModelProperty(value = "token", example = "12e34awsde12")
+    @Schema(title = "token", example = "12e34awsde12")
     private String token;
 
-    @ApiModelProperty(value = "token 有效期", example = "1800")
+    @Schema(title = "token 有效期", example = "1800")
     private Integer tokenTime;
 
-    @ApiModelProperty(value = "siteId", example = "ltzx124yu54z")
+    @Schema(title = "token 有效期", example = "1800")
+    private Integer proxyTokenTime;
+
+    @Schema(title = "siteId", example = "ltzx124yu54z")
     private String siteId;
 
-    @ApiModelProperty(value = "listId", example = "nbmyuoya12sz")
+    @Schema(title = "listId", example = "nbmyuoya12sz")
     private String listId;
 
-    @ApiModelProperty(value = "站点名称", example = "test")
+    @Schema(title = "站点名称", example = "test")
     private String siteName;
 
-    @ApiModelProperty(value = "站点类型", example = "sites")
+    @Schema(title = "站点类型", example = "sites")
     private String siteType;
 
-    @ApiModelProperty(value = "下载反代域名", example = "http://zfile-oroxy.zfile.vip")
+    @Schema(title = "下载反代域名", example = "http://zfile-oroxy.zfile.vip")
     private String proxyDomain;
 
-    @ApiModelProperty(value = "下载链接类型", example = "basic")
+    @Schema(title = "下载链接类型", example = "basic")
     private String downloadLinkType;
 
-    @ApiModelProperty(value = "clientId", example = "4a72d927-1917-418d-9eb2-1b365c53c1c5")
+    @Schema(title = "clientId", example = "4a72d927-1917-418d-9eb2-1b365c53c1c5")
     private String clientId;
 
-    @ApiModelProperty(value = "clientSecret", example = "l:zI-_yrW75lV8M61K@z.I2K@B/On6Q1a")
+    @Schema(title = "clientSecret", example = "l:zI-_yrW75lV8M61K@z.I2K@B/On6Q1a")
     private String clientSecret;
-    
-    @ApiModelProperty(value = "回调地址", example = "https://zfile.jun6.net/onedrive/callback")
+
+    @Schema(title = "回调地址", example = "https://zfile.jun6.net/onedrive/callback")
     private String redirectUri;
 
-    @ApiModelProperty(value = "区域", example = "cn-beijing")
+    @Schema(title = "区域", example = "cn-beijing")
     private String region;
 
-    @ApiModelProperty(value = "url", example = "url 链接")
+    @Schema(title = "url", example = "url 链接")
     private String url;
 
-    @ApiModelProperty(value = "是否自动配置 cors 规则", example = "true")
-    private Boolean autoConfigCors;
-
-    @ApiModelProperty(value = "编码格式", example = "UTF-8")
+    @Schema(title = "编码格式", example = "UTF-8")
     private String encoding;
-    
-    @ApiModelProperty(value = "存储源 ID", example = "0AGrY0xF1D7PEUk9PV2")
+
+    @Schema(title = "存储源 ID", example = "0AGrY0xF1D7PEUk9PV2")
     private String driveId;
-    
+
+    @Schema(title = "启用代理上传", example = "true")
+    private boolean enableProxyUpload;
+
+    @Schema(title = "启用代理下载", example = "true")
+    private boolean enableProxyDownload;
+
+    @Schema(title = "下载重定向模式", example = "true")
+    private boolean redirectMode;
+
+    @Schema(title = "FTP 模式", example = "passive")
+    private String ftpMode;
+
+    @Schema(title = "代理上传超时时间(秒)", example = "300")
+    private Integer proxyUploadTimeoutSecond;
+
+    @Schema(title = "最大连接数", example = "8")
+    private Integer maxConnections;
+
+    @Schema(title = "下载链接强制下载", example = "true")
+    private boolean proxyLinkForceDownload;
+
+    @Schema(title = "S3 跨域配置", example = "[]")
+    @JsonSerialize(using = JSONStringSerializer.class)
+    @JsonDeserialize(using = JSONStringDeserializer.class)
+    private String corsConfigList;
+
 }

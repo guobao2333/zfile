@@ -1,20 +1,21 @@
 package im.zhaojun.zfile.module.storage.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.exceptions.ExceptionUtil;
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
-import com.github.sardine.SardineFactory;
-import im.zhaojun.zfile.core.constant.ZFileConstant;
+import com.github.sardine.impl.SardineException;
+import com.github.sardine.impl.io.ContentLengthInputStream;
+import im.zhaojun.zfile.core.util.FileUtils;
 import im.zhaojun.zfile.core.util.RequestHolder;
 import im.zhaojun.zfile.core.util.StringUtils;
+import im.zhaojun.zfile.module.storage.model.bo.StorageSourceMetadata;
 import im.zhaojun.zfile.module.storage.model.enums.FileTypeEnum;
 import im.zhaojun.zfile.module.storage.model.enums.StorageTypeEnum;
 import im.zhaojun.zfile.module.storage.model.param.WebdavParam;
 import im.zhaojun.zfile.module.storage.model.result.FileItemResult;
 import im.zhaojun.zfile.module.storage.service.base.AbstractProxyTransferService;
+import im.zhaojun.zfile.module.storage.support.webdav.CustomSardine;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -25,7 +26,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -38,27 +40,27 @@ import java.util.Objects;
 @Slf4j
 public class WebdavServiceImpl extends AbstractProxyTransferService<WebdavParam> {
 
+	public static final Duration connectTimeoutSecond = Duration.ofSeconds(10);
+
 	private Sardine sardine;
 
 	private String getRequestPath(String... strs) {
-		return StringUtils.concat(param.getUrl(), StringUtils.encodeAllIgnoreSlashes(StringUtils.concat(strs)));
+		return getRequestPath(true, strs);
+	}
+
+	private String getRequestPath(boolean containUserBasePath, String... strs) {
+		return StringUtils.concat(param.getUrl(),
+				StringUtils.encodeAllIgnoreSlashes(param.getBasePath()),
+				containUserBasePath ? StringUtils.encodeAllIgnoreSlashes(getCurrentUserBasePath()) : "",
+				StringUtils.encodeAllIgnoreSlashes(StringUtils.concat(strs)));
 	}
 
 	@SneakyThrows
 	@Override
 	public void init() {
-		if (StrUtil.isAllNotEmpty(param.getUsername(), param.getPassword())) {
-			sardine = SardineFactory.begin(param.getUsername(), param.getPassword());
-		} else {
-			sardine = SardineFactory.begin();
-		}
-
-		// 设置每次发请求都设置请求头，防止身份验证导致的无法上传成功.
-		String host = new URL(param.getUrl()).getHost();
+		sardine = new CustomSardine(param.getUsername(), param.getPassword(), connectTimeoutSecond, null);
+		String host = URI.create(param.getUrl()).getHost();
 		sardine.enablePreemptiveAuthentication(host);
-
-		testConnection();
-		isInitialized = true;
 	}
 
 	@Override
@@ -70,8 +72,8 @@ public class WebdavServiceImpl extends AbstractProxyTransferService<WebdavParam>
 
 		List<DavResource> resources = sardine.list(requestUrl);
 		for (DavResource davResource : resources) {
-			if (Objects.equals(StringUtils.concat(requestPath, ZFileConstant.PATH_SEPARATOR),
-								StringUtils.concat(davResource.getPath(), ZFileConstant.PATH_SEPARATOR))) {
+			if (Objects.equals(StringUtils.concat(requestPath, StringUtils.SLASH),
+								StringUtils.concat(davResource.getPath(), StringUtils.SLASH))) {
 				continue;
 			}
 
@@ -90,22 +92,36 @@ public class WebdavServiceImpl extends AbstractProxyTransferService<WebdavParam>
 
 	@Override
 	public FileItemResult getFileItem(String pathAndName) {
-		try {
-			String requestUrl = getRequestPath(pathAndName);
-			List<DavResource> resources = sardine.list(requestUrl);
-			String folderPath = StringUtils.getParentPath(pathAndName);
-
-			DavResource davResource = CollUtil.getLast(resources);
-			return davResourceToFileItem(davResource, folderPath);
-		} catch (Exception e) {
-			throw ExceptionUtil.wrapRuntime(e);
-		}
+		return getFileItem(pathAndName, true);
 	}
+
+    public FileItemResult getFileItem(String pathAndName, boolean containUserBasePath) {
+        try {
+            String requestUrl = getRequestPath(containUserBasePath, pathAndName);
+
+            List<DavResource> resources = sardine.list(requestUrl, 0);
+
+            DavResource davResource = resources.isEmpty() ? null : resources.get(0);
+
+            if (davResource == null) {
+                return null;
+            }
+
+            String folderPath = FileUtils.getParentPath(pathAndName);
+            return davResourceToFileItem(davResource, folderPath);
+        } catch (Exception e) {
+            if (e instanceof SardineException && ((SardineException) e).getStatusCode() == 404) {
+                return null;
+            }
+            throw ExceptionUtil.wrapRuntime(e);
+        }
+    }
 
 	@Override
 	public boolean newFolder(String path, String name) {
 		try {
-			sardine.createDirectory(getRequestPath(path, name));
+			String requestPath = getRequestPath(path, name);
+			sardine.createDirectory(requestPath + "/");
 			return true;
 		} catch (Exception e) {
 			throw ExceptionUtil.wrapRuntime(e);
@@ -129,36 +145,45 @@ public class WebdavServiceImpl extends AbstractProxyTransferService<WebdavParam>
 
 	@Override
 	public boolean renameFolder(String path, String name, String newName) {
-		return renameFile(path, name, newName);
+		return moveFolder(path, name, path, newName);
 	}
 
 	@Override
 	public boolean renameFile(String path, String name, String newName) {
-		try {
-			sardine.move(getRequestPath(path, name), getRequestPath(path, newName));
-			return true;
-		} catch (IOException e) {
-			throw ExceptionUtil.wrapRuntime(e);
-		}
+		return moveFolder(path, name, path, newName);
 	}
 
+
 	@Override
-	public ResponseEntity<Resource> downloadToStream(String pathAndName) {
-		RequestHolder.writeFile(s -> {
-			try {
-				return sardine.get(getRequestPath(pathAndName));
-			} catch (IOException e) {
-				throw ExceptionUtil.wrapRuntime(e);
-			}
-		}, pathAndName);
+	public String getDownloadUrl(String pathAndName) {
+		if (param.isRedirectMode()) {
+			return getRequestPath(false, pathAndName);
+		}
+		if (StringUtils.isNotBlank(param.getDomain())) {
+			return StringUtils.concat(param.getDomain(), StringUtils.encodeAllIgnoreSlashes(StringUtils.concat(param.getBasePath(), pathAndName)));
+		}
+		return super.getProxyDownloadUrl(pathAndName);
+	}
+
+
+	@Override
+	public ResponseEntity<Resource> downloadToStream(String pathAndName) throws IOException {
+		ContentLengthInputStream inputStream = (ContentLengthInputStream) sardine.get(getRequestPath(false, pathAndName));
+		String fileName = FileUtils.getName(pathAndName);
+		RequestHolder.writeFile(inputStream, fileName, inputStream.getLength(), false, param.isProxyLinkForceDownload());
 		return null;
 	}
 
 	@Override
-	public void uploadFile(String pathAndName, InputStream inputStream) {
+	public String getUploadUrl(String path, String name, Long size) {
+		return super.getProxyUploadUrl(path, name);
+	}
+
+	@Override
+	public void uploadFile(String pathAndName, InputStream inputStream, Long size) {
 		try {
 			pathAndName = getRequestPath(pathAndName);
-			sardine.put(pathAndName, inputStream);
+			sardine.put(pathAndName, inputStream, null, true, size);
 		} catch (IOException e) {
 			throw ExceptionUtil.wrapRuntime(e);
 		}
@@ -172,9 +197,57 @@ public class WebdavServiceImpl extends AbstractProxyTransferService<WebdavParam>
 		fileItemResult.setType(davResource.isDirectory() ? FileTypeEnum.FOLDER : FileTypeEnum.FILE);
 		fileItemResult.setPath(folderPath);
 		if (fileItemResult.getType() == FileTypeEnum.FILE) {
-			fileItemResult.setUrl(getDownloadUrl(StringUtils.concat(folderPath, fileItemResult.getName())));
+			fileItemResult.setUrl(getDownloadUrl(StringUtils.concat(getCurrentUserBasePath(), folderPath, fileItemResult.getName())));
 		}
 		return fileItemResult;
 	}
 
+	@Override
+	public boolean copyFile(String path, String name, String targetPath, String targetName) {
+		return copyFolder(path, name, targetPath, targetName);
+	}
+
+	@Override
+	public boolean copyFolder(String path, String name, String targetPath, String targetName) {
+		try {
+			sardine.copy(getRequestPath(path, name), getRequestPath(targetPath, targetName));
+			return true;
+		} catch (IOException e) {
+			throw ExceptionUtil.wrapRuntime(e);
+		}
+	}
+
+	@Override
+	public boolean moveFile(String path, String name, String targetPath, String targetName) {
+		return moveFolder(path, name, targetPath, targetName);
+	}
+
+	@Override
+	public boolean moveFolder(String path, String name, String targetPath, String targetName) {
+		try {
+			sardine.move(getRequestPath(path, name) + "/", getRequestPath(targetPath, targetName) + "/");
+			return true;
+		} catch (IOException e) {
+			throw ExceptionUtil.wrapRuntime(e);
+		}
+	}
+
+	@Override
+	public StorageSourceMetadata getStorageSourceMetadata() {
+		StorageSourceMetadata storageSourceMetadata = new StorageSourceMetadata();
+		storageSourceMetadata.setUploadType(StorageSourceMetadata.UploadType.PROXY);
+		return storageSourceMetadata;
+	}
+
+
+	@Override
+	public void destroy() {
+		if (sardine != null) {
+			try {
+				sardine.shutdown();
+			} catch (IOException e) {
+				log.error("WebDAV 服务关闭失败", e);
+			}
+		}
+	}
 }
